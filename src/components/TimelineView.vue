@@ -1,12 +1,17 @@
 <script setup lang="ts">import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useTourStore } from '../stores/tourStore';
-import { ChevronLeft, ChevronRight, Clock, AlertTriangle, GripHorizontal, MapPin, Download } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Clock, AlertTriangle, AlertCircle, GripHorizontal, MapPin, Download } from 'lucide-vue-next';
 import type { Show, DragState } from '../types';
 const store = useTourStore();
 const emit = defineEmits<{
  (e: 'selectShow', showId: string): void;
  (e: 'exportPNG'): void;
+ (e: 'highlightShow', showId: string): void;
 }>();
+
+defineExpose({
+ highlightShow
+});
 const scrollContainerRef = ref<HTMLDivElement | null>(null);
 const timelineInnerRef = ref<HTMLDivElement | null>(null);
 const dragState = ref<DragState>({
@@ -17,6 +22,8 @@ const dragState = ref<DragState>({
 });
 const hoveredShow = ref<string | null>(null);
 const isScrolled = ref(false);
+const highlightedShowId = ref<string | null>(null);
+let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
 const PIXELS_PER_HOUR = 60;
 const ROW_HEIGHT = 48;
 const HEADER_HEIGHT = 56;
@@ -152,7 +159,21 @@ function selectShow(showId: string) {
  store.selectedShowId = showId;
  emit('selectShow', showId);
 }
+function highlightShow(showId: string) {
+ if (highlightTimeout) {
+ clearTimeout(highlightTimeout);
+ }
+ highlightedShowId.value = showId;
+ scrollToShow(showId);
+ highlightTimeout = setTimeout(() => {
+ highlightedShowId.value = null;
+ }, 2000);
+}
+
 function getShowColor(show: Show): string {
+ if (highlightedShowId.value === show.id) {
+ return 'bg-yellow-400 border-yellow-500 shadow-lg shadow-yellow-400/50 ring-4 ring-yellow-300 animate-pulse';
+ }
  const conflicts = getShowConflicts(show.id);
  if (conflicts.length > 0) {
  return 'bg-red-500 border-red-600 shadow-lg shadow-red-500/30';
@@ -365,6 +386,14 @@ function getShowColor(show: Show): string {
         <span class="flex items-center gap-1">
           <span class="w-3 h-3 bg-red-500 rounded"></span>
           存在冲突
+        </span>
+        <span v-if="store.errorCount > 0" class="flex items-center gap-1 text-red-600 font-medium">
+          <AlertCircle class="w-3 h-3" />
+          错误 {{ store.errorCount }}
+        </span>
+        <span v-if="store.warningCount > 0" class="flex items-center gap-1 text-amber-600 font-medium">
+          <AlertTriangle class="w-3 h-3" />
+          警告 {{ store.warningCount }}
         </span>
       </div>
       <span>拖拽甘特条可调整场次时间 | 点击可查看详情</span>

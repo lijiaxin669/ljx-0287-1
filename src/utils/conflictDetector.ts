@@ -1,4 +1,5 @@
 import type { Show, Venue, Conflict, Instrument } from '../types'
+import { getConflictSeverity } from '../types'
 
 const TRANSPORT_WINDOW_HOURS = 6
 
@@ -47,7 +48,8 @@ export function checkMusicianOverlap(show: Show, otherShows: Show[]): Conflict[]
         showId: show.id,
         relatedShowId: other.id,
         message: `乐手撞档：与「${other.city}」场时间重叠`,
-        details: `冲突乐手：${overlappingMusicians.length}人，重叠时间：${formatTime(showStart)} - ${formatTime(showEnd)}`
+        details: `冲突乐手：${overlappingMusicians.length}人，重叠时间：${formatTime(showStart)} - ${formatTime(showEnd)}`,
+        severity: getConflictSeverity('musician_overlap')
       })
     }
   }
@@ -88,7 +90,8 @@ export function checkTransportWindow(
           showId: show.id,
           relatedShowId: other.id,
           message: `运输窗口不足：与「${other.city}」场仅间隔 ${minWindow.toFixed(1)} 小时`,
-          details: `${direction}需预留至少 ${TRANSPORT_WINDOW_HOURS} 小时运输时间，涉及${sharedInstruments.length}件大型乐器`
+          details: `${direction}需预留至少 ${TRANSPORT_WINDOW_HOURS} 小时运输时间，涉及${sharedInstruments.length}件大型乐器`,
+          severity: getConflictSeverity('transport_window')
         })
       }
     }
@@ -110,7 +113,8 @@ export function checkVenueAvailability(show: Show, venues: Venue[]): Conflict[] 
       type: 'venue_unavailable',
       showId: show.id,
       message: `场馆不可用：「${venue.name}」在 ${showDate} 已标记为不可用`,
-      details: `该场馆在选定日期已有其他安排，请更换日期或场馆`
+      details: `该场馆在选定日期已有其他安排，请更换日期或场馆`,
+      severity: getConflictSeverity('venue_unavailable')
     })
   }
 

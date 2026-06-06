@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTourStore } from '../stores/tourStore'
-import { ChevronRight, ChevronDown, MapPin, Calendar, AlertTriangle, Music, Users } from 'lucide-vue-next'
+import { ChevronRight, ChevronDown, MapPin, Calendar, AlertTriangle, AlertCircle, Music, Users } from 'lucide-vue-next'
 
 const store = useTourStore()
 
@@ -123,17 +123,28 @@ function selectShow(showId: string) {
         新增场次
       </button>
 
-      <div v-if="store.allConflicts.length > 0" class="mt-4">
-        <div class="flex items-center gap-2 text-red-600 text-sm font-medium mb-2">
-          <AlertTriangle class="w-4 h-4" />
-          冲突警告 ({{ store.allConflicts.length }})
+      <div v-if="store.unresolvedConflicts.length > 0" class="mt-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-medium text-red-600 flex items-center gap-1">
+            <AlertCircle class="w-3.5 h-3.5" />
+            错误 {{ store.errorCount }}
+          </span>
+          <span class="text-xs font-medium text-amber-600 flex items-center gap-1">
+            <AlertTriangle class="w-3.5 h-3.5" />
+            警告 {{ store.warningCount }}
+          </span>
         </div>
         <div class="space-y-2 max-h-40 overflow-y-auto">
           <div
-            v-for="(conflict, idx) in store.allConflicts.slice(0, 5)"
+            v-for="(conflict, idx) in store.unresolvedConflicts.slice(0, 5)"
             :key="idx"
             @click="selectShow(conflict.showId)"
-            class="text-xs p-2 bg-red-50 text-red-700 rounded cursor-pointer hover:bg-red-100 transition-colors"
+            :class="[
+              'text-xs p-2 rounded cursor-pointer hover:shadow-sm transition-colors',
+              conflict.severity === 'error'
+                ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+            ]"
           >
             {{ conflict.message }}
           </div>

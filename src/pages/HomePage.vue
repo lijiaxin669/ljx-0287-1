@@ -4,11 +4,13 @@ import { useTourStore } from '../stores/tourStore'
 import TourTree from '../components/TourTree.vue'
 import TimelineView from '../components/TimelineView.vue'
 import ShowEditDialog from '../components/ShowEditDialog.vue'
+import ConflictWorkbench from '../components/ConflictWorkbench.vue'
 import html2canvas from 'html2canvas'
 
 const store = useTourStore()
 
 const timelineRef = ref<HTMLElement | null>(null)
+const timelineViewRef = ref<InstanceType<typeof TimelineView> | null>(null)
 const showEditDialog = ref(false)
 const isNewShow = ref(false)
 const isExporting = ref(false)
@@ -19,7 +21,12 @@ onMounted(() => {
 
 function handleSelectShow(showId: string) {
   isNewShow.value = false
+  store.selectedShowId = showId
   showEditDialog.value = true
+}
+
+function handleHighlightShow(showId: string) {
+  timelineViewRef.value?.highlightShow(showId)
 }
 
 function handleAddShow() {
@@ -110,10 +117,16 @@ async function handleExportPNG() {
 
       <main class="flex-1 overflow-hidden" ref="timelineRef">
         <TimelineView
+          ref="timelineViewRef"
           @select-show="handleSelectShow"
           @export-p-n-g="handleExportPNG"
         />
       </main>
+
+      <ConflictWorkbench
+        @highlight-show="handleHighlightShow"
+        @select-show="handleSelectShow"
+      />
     </div>
 
     <ShowEditDialog

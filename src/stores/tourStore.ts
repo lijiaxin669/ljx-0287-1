@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { TourSeason, Show, Musician, Instrument, Venue, Conflict, TimelineViewMode } from '../types'
+import type { TourSeason, Show, Musician, Instrument, Venue, Conflict, TimelineViewMode, RescheduleSuggestion } from '../types'
 import { detectAllConflicts } from '../utils/conflictDetector'
+import { getSuggestionsForShow } from '../utils/rescheduleSuggestions'
 
 const STORAGE_KEY = 'tour-scheduler-draft'
 const STORAGE_VERSION = '1.0.1'
+const RESOLVED_CONFLICTS_KEY = 'tour-scheduler-resolved-conflicts'
 
 const mockMusicians: Musician[] = [
   { id: 'musician1', name: '张明', role: '主唱/吉他' },
@@ -118,6 +120,7 @@ export const useTourStore = defineStore('tour', () => {
   const expandedCities = ref<Set<string>>(new Set())
   const viewMode = ref<TimelineViewMode>('week')
   const viewStartDate = ref<Date>(new Date('2024-06-10'))
+  const resolvedConflictKeys = ref<Set<string>>(new Set())
 
   function initializeStore() {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -161,6 +164,16 @@ export const useTourStore = defineStore('tour', () => {
     musicians.value = mockMusicians
     instruments.value = mockInstruments
     venues.value = mockVenues
+
+    const savedResolved = localStorage.getItem(RESOLVED_CONFLICTS_KEY)
+    if (savedResolved) {
+      try {
+        const data = JSON.parse(savedResolved)
+        resolvedConflictKeys.value = new Set(data)
+      } catch {
+        resolvedConflictKeys.value = new Set()
+      }
+    }
   }
 
   function loadMockData() {
@@ -238,6 +251,45 @@ export const useTourStore = defineStore('tour', () => {
     }
     return conflicts
   })
+
+  function getConflictKey(conflict: Conflict): string {
+    return `${conflict.showId}-${conflict.type}-${conflict.relatedShowId || 'none'}-${conflict.message}`
+  }
+
+  const allConflictsWithResolved = computed(() => {
+    return allConflicts.value.map(conflict => ({
+      ...conflict,
+      resolved: resolvedConflictKeys.value.has(getConflictKey(conflict))
+    }))
+  })
+
+  const unresolvedConflicts = computed(() => {
+    return allConflictsWithResolved.value.filter(c => !c.resolved)
+  })
+
+  const errorCount = computed(() => {
+    return unresolvedConflicts.value.filter(c => c.severity === 'error').length
+  })
+
+  const warningCount = computed(() => {
+    return unresolvedConflicts.value.filter(c => c.severity === 'warning').length
+  })
+
+  function markConflictResolved(conflict: Conflict, resolved: boolean = true) {
+    const key = getConflictKey(conflict)
+    const newSet = new Set(resolvedConflictKeys.value)
+    if (resolved) {
+      newSet.add(key)
+    } else {
+      newSet.delete(key)
+    }
+    resolvedConflictKeys.value = newSet
+    localStorage.setItem(RESOLVED_CONFLICTS_KEY, JSON.stringify(Array.from(newSet)))
+  }
+
+  function getSuggestionsForShowAction(showId: string): RescheduleSuggestion[] {
+    return getSuggestionsForShow(showId, shows.value, venues.value, instruments.value)
+  }
 
   function addShow(show: Omit<Show, 'id'>) {
     const newShow: Show = {
@@ -347,6 +399,10 @@ export const useTourStore = defineStore('tour', () => {
     cities,
     conflictMap,
     allConflicts,
+    allConflictsWithResolved,
+    unresolvedConflicts,
+    errorCount,
+    warningCount,
     initializeStore,
     addShow,
     updateShow,
@@ -358,6 +414,8 @@ export const useTourStore = defineStore('tour', () => {
     setViewMode,
     setViewStartDate,
     navigateView,
-    ensureDateInView
+    ensureDateInView,
+    markConflictResolved,
+    getSuggestionsForShowAction
   }
 })

@@ -44,6 +44,42 @@ export interface Conflict {
   relatedShowId?: string
   message: string
   details: string
+  severity?: 'error' | 'warning'
+  resolved?: boolean
+}
+
+export interface RescheduleSuggestion {
+  showId: string
+  newStartTime: string
+  originalStartTime: string
+  timeDiffDays: number
+  remainingConflicts: number
+  conflicts: Conflict[]
+}
+
+export function getConflictTypeLabel(type: ConflictType): string {
+  switch (type) {
+    case 'musician_overlap':
+      return '乐手撞档'
+    case 'transport_window':
+      return '运输窗口'
+    case 'venue_unavailable':
+      return '场馆不可用'
+    default:
+      return type
+  }
+}
+
+export function getConflictSeverity(type: ConflictType): 'error' | 'warning' {
+  switch (type) {
+    case 'musician_overlap':
+    case 'venue_unavailable':
+      return 'error'
+    case 'transport_window':
+      return 'warning'
+    default:
+      return 'warning'
+  }
 }
 
 export type TimelineViewMode = 'week' | 'month'

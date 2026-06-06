@@ -2,8 +2,9 @@
 import { ref, computed, watch } from 'vue'
 import { useTourStore } from '../stores/tourStore'
 import { detectConflicts } from '../utils/conflictDetector'
-import { X, AlertTriangle, Check, Users, Music2, MapPin, Calendar, Clock, Trash2, Save } from 'lucide-vue-next'
+import { X, AlertTriangle, AlertCircle, Check, Users, Music2, MapPin, Calendar, Clock, Trash2, Save } from 'lucide-vue-next'
 import type { Show, Conflict } from '../types'
+import ReschedulePanel from './ReschedulePanel.vue'
 
 const props = defineProps<{
   showId: string | null
@@ -59,6 +60,14 @@ const currentConflicts = computed((): Conflict[] => {
     instrumentIds: form.value.instrumentIds
   }
   return detectConflicts(tempShow, store.shows, store.venues, store.instruments)
+})
+
+const currentConflictErrorCount = computed(() => {
+  return currentConflicts.value.filter(c => c.severity === 'error').length
+})
+
+const currentConflictWarningCount = computed(() => {
+  return currentConflicts.value.filter(c => c.severity === 'warning').length
 })
 
 watch(() => [props.showId, props.isNew], ([newShowId, isNew]) => {
@@ -191,6 +200,15 @@ function getConflictColor(type: string) {
       return 'text-gray-600 bg-gray-50 border-gray-200'
   }
 }
+
+function handleApplySuggestion(newStartTime: string) {
+  form.value.startTime = newStartTime.slice(0, 16)
+  pendingStartTime.value = newStartTime
+  hasPendingChanges.value = true
+}
+
+function refreshSuggestions() {
+}
 </script>
 
 <template>
@@ -210,9 +228,15 @@ function getConflictColor(type: string) {
 
       <div class="flex-1 overflow-y-auto p-6">
         <div v-if="currentConflicts.length > 0" class="mb-6">
-          <div class="flex items-center gap-2 text-red-600 font-medium mb-3">
-            <AlertTriangle class="w-5 h-5" />
-            <span>检测到 {{ currentConflicts.length }} 个冲突</span>
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex items-center gap-2 text-red-600 font-medium">
+              <AlertCircle class="w-5 h-5" />
+              <span>错误 {{ currentConflictErrorCount }}</span>
+            </div>
+            <div class="flex items-center gap-2 text-amber-600 font-medium">
+              <AlertTriangle class="w-5 h-5" />
+              <span>警告 {{ currentConflictWarningCount }}</span>
+            </div>
           </div>
           <div class="space-y-2">
             <div
@@ -220,12 +244,17 @@ function getConflictColor(type: string) {
               :key="idx"
               :class="[
                 'p-3 rounded-lg border cursor-pointer hover:shadow-md transition-shadow',
-                getConflictColor(conflict.type)
+                conflict.severity === 'error'
+                  ? 'text-red-600 bg-red-50 border-red-200'
+                  : 'text-amber-600 bg-amber-50 border-amber-200'
               ]"
               @click="jumpToConflict(conflict.relatedShowId)"
             >
               <div class="flex items-start gap-2">
-                <component :is="getConflictIcon(conflict.type)" class="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <component
+                  :is="conflict.severity === 'error' ? AlertCircle : AlertTriangle"
+                  class="w-4 h-4 mt-0.5 flex-shrink-0"
+                />
                 <div class="flex-1">
                   <div class="font-medium text-sm">{{ conflict.message }}</div>
                   <div class="text-xs opacity-70 mt-1">{{ conflict.details }}</div>
@@ -237,6 +266,13 @@ function getConflictColor(type: string) {
             </div>
           </div>
         </div>
+
+        <ReschedulePanel
+          :show-id="showId"
+          :is-new="isNew"
+          @apply="handleApplySuggestion"
+          @refresh="refreshSuggestions"
+        />
 
         <div class="space-y-5">
           <div>

@@ -268,4 +268,85 @@ describe('conflictDetector', () => {
       expect(conflictMap.has('show3')).toBe(false)
     })
   })
+
+  describe('severity field', () => {
+    it('should set severity to error for musician_overlap conflicts', () => {
+      const overlappingShow: Show = {
+        ...baseShow,
+        id: 'show2',
+        city: '上海',
+        startTime: '2024-06-15T20:00:00'
+      }
+
+      const conflicts = checkMusicianOverlap(baseShow, [overlappingShow])
+      expect(conflicts).toHaveLength(1)
+      expect(conflicts[0].severity).toBe('error')
+    })
+
+    it('should set severity to warning for transport_window conflicts', () => {
+      const shortWindowShow: Show = {
+        ...baseShow,
+        id: 'show2',
+        city: '天津',
+        startTime: '2024-06-15T23:00:00'
+      }
+
+      const conflicts = checkTransportWindow(baseShow, [shortWindowShow], testInstruments)
+      expect(conflicts).toHaveLength(1)
+      expect(conflicts[0].severity).toBe('warning')
+    })
+
+    it('should set severity to error for venue_unavailable conflicts', () => {
+      const venues: Venue[] = [
+        {
+          id: 'venue1',
+          name: '北京体育馆',
+          city: '北京',
+          unavailableDates: ['2024-06-15']
+        }
+      ]
+
+      const conflicts = checkVenueAvailability(baseShow, venues)
+      expect(conflicts).toHaveLength(1)
+      expect(conflicts[0].severity).toBe('error')
+    })
+
+    it('should include severity in detectAllConflicts results', () => {
+      const show1: Show = { ...baseShow }
+      const show2: Show = {
+        ...baseShow,
+        id: 'show2',
+        city: '上海',
+        startTime: '2024-06-15T20:00:00'
+      }
+
+      const venues: Venue[] = [
+        {
+          id: 'venue1',
+          name: '北京体育馆',
+          city: '北京',
+          unavailableDates: ['2024-06-15']
+        },
+        {
+          id: 'venue2',
+          name: '上海体育馆',
+          city: '上海',
+          unavailableDates: []
+        }
+      ]
+
+      const conflictMap = detectAllConflicts([show1, show2], venues, testInstruments)
+      const show1Conflicts = conflictMap.get('show1') || []
+
+      expect(show1Conflicts.length).toBeGreaterThanOrEqual(2)
+
+      const musicianConflict = show1Conflicts.find(c => c.type === 'musician_overlap')
+      expect(musicianConflict).toBeDefined()
+      expect(musicianConflict?.severity).toBe('error')
+
+      const venueConflict = show1Conflicts.find(c => c.type === 'venue_unavailable')
+      expect(venueConflict).toBeDefined()
+      expect(venueConflict?.severity).toBe('error')
+    })
+  })
 })
